@@ -1,9 +1,5 @@
-'use client'
-import { useState } from 'react'
-import { PORTS, Passenger, formatDate, getRoutesForDate } from '@/lib/routes'
-import AvatarIcon from '@/components/AvatarIcon'
 
-interface Props {
+
   origin:string; setOrigin:(v:string)=>void
   destination:string; setDestination:(v:string)=>void
   selectedDate:Date; setSelectedDate:(d:Date)=>void
@@ -11,7 +7,6 @@ interface Props {
   onSearch:()=>void; user:any; theme:'dark'|'light'
 }
 
-export default function SearchScreen({origin,setOrigin,destination,setDestination,selectedDate,setSelectedDate,passengers,setPassengers,onSearch,user,theme}:Props) {
   const [showPassengers,setShowPassengers]=useState(false)
   const [showCalendar,setShowCalendar]=useState(false)
   const dark=theme==='dark'
@@ -24,11 +19,7 @@ export default function SearchScreen({origin,setOrigin,destination,setDestinatio
   function swap(){const t=origin;setOrigin(destination);setDestination(t)}
 
   const totalPax=passengers.adults+passengers.children+passengers.infants
-  const paxLabel=`${passengers.adults} Adult${passengers.adults>1?'s':''}${passengers.children>0?`, ${passengers.children} Child${passengers.children>1?'ren':''}` :''}${passengers.infants>0?`, ${passengers.infants} Infant${passengers.infants>1?'s':''}`:''}`
-
-  // Calendar helpers
-  const today=new Date()
-  const [calMonth,setCalMonth]=useState(selectedDate.getMonth())
+  const paxLabel=`${passengers.adults} Adult${passengers.adults>1?'s':''}${passengers.children>0?`, ${passengers.children} Child${passengers.children>1?'ren':''}` :''}${passengers.infants>0?`, ${passengers.infants
   const [calYear,setCalYear]=useState(selectedDate.getFullYear())
   const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December']
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate()
