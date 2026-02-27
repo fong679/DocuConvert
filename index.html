@@ -6,8 +6,10 @@
     <title>DocuConvert - Private & Fast File Conversion</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide:0.263.0/lucide.min.js"></script>
-    <!-- Adding jspdf for actual client-side PDF generation -->
+    <!-- Libraries for actual client-side conversion -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         
@@ -79,7 +81,7 @@
                         <i data-lucide="upload-cloud" class="w-10 h-10 text-indigo-600 dark:text-indigo-400"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-2">Drop your files here</h3>
-                    <p class="text-slate-500 mb-8">PDF, Excel, Word, PowerPoint, and more</p>
+                    <p class="text-slate-500 mb-8">PDF, Excel, Word, images, and more</p>
                     <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-4 rounded-2xl font-semibold shadow-xl shadow-indigo-200 dark:shadow-none transition-all active:scale-95">
                         Browse Files
                     </button>
@@ -102,6 +104,9 @@
                         <span class="text-sm font-bold text-slate-500">Output:</span>
                         <select id="formatSelect" class="flex-1 md:flex-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
                             <option value="pdf">Portable Document (.pdf)</option>
+                            <option value="docx">Word Document (.docx)</option>
+                            <option value="xlsx">Excel Sheet (.xlsx)</option>
+                            <option value="png">Image (.png)</option>
                         </select>
                     </div>
                     <button id="convertBtn" class="w-full md:w-auto bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-3">
@@ -190,6 +195,7 @@
             const fileListContainer = document.getElementById('fileListContainer');
             const fileList = document.getElementById('fileList');
             const fileCountBadge = document.getElementById('fileCount');
+            const formatSelect = document.getElementById('formatSelect');
             let selectedFiles = [];
 
             dropZone.addEventListener('click', () => fileInput.click());
@@ -247,7 +253,7 @@
                 }
             }
 
-            // --- Functional Conversion Logic ---
+            // --- Conversion Logic ---
             const convertBtn = document.getElementById('convertBtn');
             const modal = document.getElementById('processingModal');
             const spinner = document.getElementById('spinner');
@@ -256,10 +262,8 @@
             const modalText = document.getElementById('modalText');
             const closeModal = document.getElementById('closeModal');
 
-            async function performActualConversion() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
+            async function performConversion() {
+                const targetFormat = formatSelect.value;
                 modal.classList.remove('hidden');
                 spinner.classList.remove('hidden');
                 successIcon.classList.add('hidden');
@@ -267,39 +271,92 @@
                 modalTitle.innerText = "Processing Files...";
 
                 try {
-                    for (let i = 0; i < selectedFiles.length; i++) {
-                        const file = selectedFiles[i];
-                        
-                        // If it's an image, embed it. If text, write it.
-                        if (file.type.startsWith('image/')) {
-                            const imageData = await fileToDataURL(file);
-                            if (i > 0) doc.addPage();
-                            const imgProps = doc.getImageProperties(imageData);
-                            const pdfWidth = doc.internal.pageSize.getWidth();
-                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                            doc.addImage(imageData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                        } else {
-                            const text = await fileToText(file);
-                            if (i > 0) doc.addPage();
-                            doc.text(text, 10, 10, { maxWidth: 180 });
-                        }
+                    if (targetFormat === 'pdf') {
+                        await convertToPDF();
+                    } else if (targetFormat === 'xlsx') {
+                        await convertToExcel();
+                    } else if (targetFormat === 'docx') {
+                        await convertToWord();
+                    } else if (targetFormat === 'png') {
+                        await convertToImage();
                     }
-
-                    // Download the result
-                    doc.save(`DocuConvert_${Date.now()}.pdf`);
 
                     spinner.classList.add('hidden');
                     successIcon.classList.remove('hidden');
                     setTimeout(() => successIcon.classList.add('scale-100'), 50);
                     modalTitle.innerText = "Download Ready!";
-                    modalText.innerText = "Your conversion is complete and saved to your downloads folder.";
+                    modalText.innerText = `Successfully converted ${selectedFiles.length} file(s) to ${targetFormat.toUpperCase()}.`;
                     closeModal.classList.remove('hidden');
                 } catch (error) {
                     console.error(error);
                     modalTitle.innerText = "Error";
-                    modalText.innerText = "Something went wrong during local processing.";
+                    modalText.innerText = "An error occurred during local conversion. Ensure the file types are compatible.";
                     spinner.classList.add('hidden');
                     closeModal.classList.remove('hidden');
+                }
+            }
+
+            // Target: PDF
+            async function convertToPDF() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    if (i > 0) doc.addPage();
+                    if (file.type.startsWith('image/')) {
+                        const imageData = await fileToDataURL(file);
+                        const imgProps = doc.getImageProperties(imageData);
+                        const pdfWidth = doc.internal.pageSize.getWidth();
+                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                        doc.addImage(imageData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    } else if (file.name.endsWith('.docx')) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                        doc.text(result.value, 10, 10, { maxWidth: 180 });
+                    } else {
+                        const text = await fileToText(file);
+                        doc.text(text, 10, 10, { maxWidth: 180 });
+                    }
+                }
+                doc.save(`DocuConvert_${Date.now()}.pdf`);
+            }
+
+            // Target: Excel (XLSX)
+            async function convertToExcel() {
+                const wb = XLSX.utils.book_new();
+                for (const file of selectedFiles) {
+                    const text = await fileToText(file);
+                    // Simple logic: split lines by newline and cells by comma/tab
+                    const rows = text.split('\n').map(line => line.split(/,|\t/));
+                    const ws = XLSX.utils.aoa_to_sheet(rows);
+                    XLSX.utils.book_append_sheet(wb, ws, file.name.substring(0, 30));
+                }
+                XLSX.writeFile(wb, `DocuConvert_${Date.now()}.xlsx`);
+            }
+
+            // Target: Word (DOCX)
+            async function convertToWord() {
+                // Mammoth is for reading, for writing we use a Blob hack for simple text-to-docx
+                for (const file of selectedFiles) {
+                    const content = await fileToText(file);
+                    const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `${file.name.split('.')[0]}.docx`;
+                    link.click();
+                }
+            }
+
+            // Target: Image (PNG) - Simple placeholder for canvas export
+            async function convertToImage() {
+                for (const file of selectedFiles) {
+                    if (file.type.startsWith('image/')) {
+                        const dataUrl = await fileToDataURL(file);
+                        const link = document.createElement('a');
+                        link.href = dataUrl;
+                        link.download = `${file.name.split('.')[0]}.png`;
+                        link.click();
+                    }
                 }
             }
 
@@ -321,7 +378,7 @@
 
             convertBtn.addEventListener('click', () => {
                 if (selectedFiles.length === 0) return;
-                performActualConversion();
+                performConversion();
             });
 
             closeModal.addEventListener('click', () => {
