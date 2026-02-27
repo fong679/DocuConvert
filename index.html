@@ -37,17 +37,18 @@
             transform: scale(1.01);
         }
 
-        #themeIcon {
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .rotate-icon {
-            transform: rotate(360deg);
-        }
-
         .progress-ring {
             transition: stroke-dashoffset 0.35s;
             transform: rotate(-90deg);
             transform-origin: 50% 50%;
+        }
+
+        /* Toggle Animation */
+        .toggle-knob {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dark .toggle-knob {
+            transform: translateX(28px);
         }
     </style>
     <script>
@@ -76,9 +77,21 @@
             <span class="text-xl font-bold tracking-tight">DocuConvert</span>
         </div>
         
-        <button id="themeToggle" class="group relative p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 transition-all shadow-sm">
-            <i id="themeIcon" data-lucide="sun" class="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-indigo-600"></i>
-        </button>
+        <!-- Redesigned Theme Toggle with Label -->
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest hidden sm:block">Theme</span>
+            <button id="themeToggle" class="relative w-16 h-8 rounded-full bg-slate-200 dark:bg-slate-800 p-1 flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="toggle-knob w-6 h-6 bg-white dark:bg-indigo-500 rounded-full shadow-md flex items-center justify-center z-10">
+                    <i id="themeIcon" data-lucide="sun" class="w-4 h-4 text-orange-500 dark:text-white"></i>
+                </div>
+                <div class="absolute left-1.5 opacity-0 dark:opacity-100 transition-opacity">
+                    <i data-lucide="moon" class="w-3.5 h-3.5 text-slate-400"></i>
+                </div>
+                <div class="absolute right-1.5 opacity-100 dark:opacity-0 transition-opacity">
+                    <i data-lucide="sun" class="w-3.5 h-3.5 text-slate-400"></i>
+                </div>
+            </button>
+        </div>
     </nav>
 
     <main class="max-w-4xl mx-auto px-6 py-12">
@@ -109,17 +122,31 @@
                 </div>
             </div>
 
-            <!-- File List Container -->
-            <div id="fileListContainer" class="hidden mt-10 space-y-6">
-                <div class="flex items-center justify-between">
-                    <h4 class="font-bold text-slate-500 dark:text-slate-400 text-sm uppercase tracking-widest">Queue</h4>
-                    <span id="fileCount" class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold px-3 py-1 rounded-full">0 Files</span>
-                </div>
-                
-                <div id="fileList" class="space-y-3">
-                    <!-- Files injected via JS -->
-                </div>
+            <!-- Workspace: Queue & Converted -->
+            <div id="fileListContainer" class="hidden mt-10 space-y-10">
+                <!-- Queue Section -->
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-slate-500 dark:text-slate-400 text-sm uppercase tracking-widest">Queue</h4>
+                        <span id="fileCount" class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold px-3 py-1 rounded-full">0 Files</span>
+                    </div>
+                    <div id="fileList" class="space-y-3">
+                        <!-- Queue items injected here -->
+                    </div>
+                </section>
 
+                <!-- Converted Section -->
+                <section id="convertedSection" class="hidden space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-emerald-600 dark:text-emerald-400 text-sm uppercase tracking-widest">Converted</h4>
+                        <button id="clearConvertedBtn" class="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">Clear All</button>
+                    </div>
+                    <div id="convertedList" class="space-y-3">
+                        <!-- Converted items injected here -->
+                    </div>
+                </section>
+
+                <!-- Action Bar -->
                 <div class="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div class="flex items-center gap-4 w-full md:w-auto">
                         <span class="text-sm font-bold text-slate-500">Output:</span>
@@ -130,10 +157,17 @@
                             <option value="png">Image (.png)</option>
                         </select>
                     </div>
-                    <button id="convertBtn" class="w-full md:w-auto bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-3">
-                        <span>Convert & Download</span>
-                        <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
-                    </button>
+                    
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <button id="convertBtn" class="flex-1 md:flex-none bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-2">
+                            <span>Convert All</span>
+                            <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
+                        </button>
+                        <button id="downloadBtn" disabled class="flex-1 md:flex-none bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl transition-all opacity-50 cursor-not-allowed flex items-center justify-center gap-2">
+                            <span>Download All</span>
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -167,7 +201,6 @@
     <!-- Processing Modal -->
     <div id="processingModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md hidden p-6">
         <div class="glass p-10 rounded-[2.5rem] max-w-md w-full text-center shadow-2xl border-indigo-500/20">
-            <!-- Progress Section -->
             <div id="progressSection" class="relative flex flex-col items-center">
                 <div class="relative mb-6">
                     <svg class="w-24 h-24">
@@ -176,27 +209,19 @@
                     </svg>
                     <div id="progressPercent" class="absolute inset-0 flex items-center justify-center font-bold text-lg">0%</div>
                 </div>
-                <h3 id="modalTitle" class="text-2xl font-extrabold mb-3">Processing...</h3>
-                <p id="modalText" class="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Preparing your files for secure local conversion.</p>
+                <h3 id="modalTitle" class="text-2xl font-extrabold mb-3">Initializing...</h3>
+                <p id="modalText" class="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Securing local environment for browser-only conversion.</p>
             </div>
 
-            <!-- Success Section -->
             <div id="successSection" class="hidden flex flex-col items-center">
                 <div class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 p-4 rounded-full mb-6">
                     <i data-lucide="check" class="w-12 h-12"></i>
                 </div>
-                <h3 class="text-2xl font-extrabold mb-3 text-emerald-600 dark:text-emerald-400">Conversion Ready!</h3>
-                <p class="text-slate-500 dark:text-slate-400 mb-8">Your local download is ready. No data was shared during this process.</p>
-                
-                <div class="grid grid-cols-2 gap-4 w-full">
-                    <button id="downloadAgainBtn" class="bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all hover:bg-indigo-700 active:scale-95 flex items-center justify-center gap-2">
-                        <i data-lucide="download" class="w-4 h-4"></i>
-                        Download
-                    </button>
-                    <button id="startOverBtn" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95">
-                        Start Over
-                    </button>
-                </div>
+                <h3 class="text-2xl font-extrabold mb-3 text-emerald-600 dark:text-emerald-400">Task Complete</h3>
+                <p class="text-slate-500 dark:text-slate-400 mb-8">Files have been successfully processed in your browser.</p>
+                <button id="closeModalBtn" class="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-2xl font-bold transition-all hover:opacity-90 active:scale-95">
+                    View Results
+                </button>
             </div>
         </div>
     </div>
@@ -214,13 +239,11 @@
             function applyTheme(theme) {
                 if (theme === 'dark') {
                     html.classList.add('dark');
-                    themeIcon.setAttribute('data-lucide', 'sun');
+                    themeIcon.setAttribute('data-lucide', 'moon');
                 } else {
                     html.classList.remove('dark');
-                    themeIcon.setAttribute('data-lucide', 'moon');
+                    themeIcon.setAttribute('data-lucide', 'sun');
                 }
-                themeIcon.classList.add('rotate-icon');
-                setTimeout(() => themeIcon.classList.remove('rotate-icon'), 500);
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
@@ -237,77 +260,113 @@
             const fileInput = document.getElementById('fileInput');
             const fileListContainer = document.getElementById('fileListContainer');
             const fileList = document.getElementById('fileList');
+            const convertedSection = document.getElementById('convertedSection');
+            const convertedList = document.getElementById('convertedList');
             const fileCountBadge = document.getElementById('fileCount');
             const formatSelect = document.getElementById('formatSelect');
+            const convertBtn = document.getElementById('convertBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const clearConvertedBtn = document.getElementById('clearConvertedBtn');
+            
             let selectedFiles = [];
-            let lastGeneratedBlob = null;
-            let lastGeneratedFilename = "";
+            let convertedOutputs = []; // Array of { name, blob, url }
 
             dropZone.addEventListener('click', () => fileInput.click());
-
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('drop-zone--over');
-            });
-
-            ['dragleave', 'dragend', 'drop'].forEach(type => {
-                dropZone.addEventListener(type, () => dropZone.classList.remove('drop-zone--over'));
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                handleFiles(e.dataTransfer.files);
-            });
-
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--over'); });
+            ['dragleave', 'dragend', 'drop'].forEach(type => dropZone.addEventListener(type, () => dropZone.classList.remove('drop-zone--over')));
+            dropZone.addEventListener('drop', (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
             fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
             function handleFiles(files) {
                 selectedFiles = [...selectedFiles, ...Array.from(files)];
-                renderFileList();
+                renderUI();
             }
 
             window.removeFile = function(index) {
                 selectedFiles.splice(index, 1);
-                renderFileList();
+                renderUI();
             };
 
-            function renderFileList() {
-                fileCountBadge.innerText = `${selectedFiles.length} File${selectedFiles.length === 1 ? '' : 's'}`;
-                
-                if (selectedFiles.length > 0) {
+            window.downloadSingle = function(index) {
+                const item = convertedOutputs[index];
+                const link = document.createElement('a');
+                link.href = item.url;
+                link.download = item.name;
+                link.click();
+            };
+
+            clearConvertedBtn.addEventListener('click', () => {
+                convertedOutputs.forEach(o => URL.revokeObjectURL(o.url));
+                convertedOutputs = [];
+                renderUI();
+            });
+
+            function renderUI() {
+                // Handle Container Visibility
+                if (selectedFiles.length > 0 || convertedOutputs.length > 0) {
                     fileListContainer.classList.remove('hidden');
-                    fileList.innerHTML = selectedFiles.map((file, index) => `
-                        <div class="flex items-center justify-between p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                            <div class="flex items-center gap-4">
-                                <div class="bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-lg">
-                                    <i data-lucide="file-text" class="text-indigo-600 dark:text-indigo-400 w-5 h-5"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold truncate max-w-[180px] md:max-w-xs">${file.name}</p>
-                                    <p class="text-xs text-slate-400">${(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                                </div>
-                            </div>
-                            <button onclick="removeFile(${index})" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    `).join('');
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 } else {
                     fileListContainer.classList.add('hidden');
                 }
+
+                // Render Queue
+                fileCountBadge.innerText = `${selectedFiles.length} File${selectedFiles.length === 1 ? '' : 's'}`;
+                fileList.innerHTML = selectedFiles.map((file, index) => `
+                    <div class="flex items-center justify-between p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm group">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-lg">
+                                <i data-lucide="file-text" class="text-indigo-600 dark:text-indigo-400 w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold truncate max-w-[180px] md:max-w-xs">${file.name}</p>
+                                <p class="text-xs text-slate-400">${(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                            </div>
+                        </div>
+                        <button onclick="removeFile(${index})" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `).join('');
+
+                // Render Converted
+                if (convertedOutputs.length > 0) {
+                    convertedSection.classList.remove('hidden');
+                    convertedList.innerHTML = convertedOutputs.map((file, index) => `
+                        <div class="flex items-center justify-between p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 shadow-sm animate-in slide-in-from-top-2 duration-300">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-emerald-100 dark:bg-emerald-900/40 p-2 rounded-lg">
+                                    <i data-lucide="check-circle-2" class="text-emerald-600 dark:text-emerald-400 w-5 h-5"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold truncate max-w-[180px] md:max-w-xs">${file.name}</p>
+                                    <p class="text-xs text-emerald-600/60 dark:text-emerald-400/60">Ready for download</p>
+                                </div>
+                            </div>
+                            <button onclick="downloadSingle(${index})" class="p-2 bg-white dark:bg-slate-800 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all shadow-sm">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `).join('');
+                    
+                    downloadBtn.disabled = false;
+                    downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    convertedSection.classList.add('hidden');
+                    downloadBtn.disabled = true;
+                    downloadBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
-            // --- Conversion Logic ---
-            const convertBtn = document.getElementById('convertBtn');
+            // --- Enhanced Conversion Logic ---
             const modal = document.getElementById('processingModal');
             const progressSection = document.getElementById('progressSection');
             const successSection = document.getElementById('successSection');
             const progressCircle = document.getElementById('progressCircle');
             const progressPercent = document.getElementById('progressPercent');
             const modalTitle = document.getElementById('modalTitle');
-            const downloadAgainBtn = document.getElementById('downloadAgainBtn');
-            const startOverBtn = document.getElementById('startOverBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
 
             function updateProgress(percent) {
                 const offset = 251.2 - (percent / 100 * 251.2);
@@ -324,138 +383,124 @@
                 modalTitle.innerText = "Analyzing Files...";
 
                 try {
-                    await new Promise(r => setTimeout(r, 500)); // UI buffer
+                    await new Promise(r => setTimeout(r, 1000)); 
                     
+                    let blob;
+                    let fileName = `Converted_${Date.now()}.${targetFormat}`;
+
                     if (targetFormat === 'pdf') {
-                        await convertToPDF();
+                        blob = await convertToPDF();
                     } else if (targetFormat === 'xlsx') {
-                        await convertToExcel();
+                        blob = await convertToExcel();
                     } else if (targetFormat === 'docx') {
-                        await convertToWord();
+                        blob = await convertToWord();
                     } else if (targetFormat === 'png') {
-                        await convertToImage();
+                        blob = await convertToImage();
                     }
 
+                    // Store result
+                    convertedOutputs.unshift({
+                        name: fileName,
+                        blob: blob,
+                        url: URL.createObjectURL(blob)
+                    });
+
+                    // Clear queue after conversion
+                    selectedFiles = [];
+                    
                     progressSection.classList.add('hidden');
                     successSection.classList.remove('hidden');
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                 } catch (error) {
                     console.error(error);
                     modalTitle.innerText = "Error";
-                    modalText.innerText = "An error occurred during local conversion.";
-                    setTimeout(() => modal.classList.add('hidden'), 3000);
+                    setTimeout(() => modal.classList.add('hidden'), 2000);
                 }
             }
+
+            async function slowStep(ms = 800) { return new Promise(r => setTimeout(r, ms)); }
 
             async function convertToPDF() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 const total = selectedFiles.length;
-                
                 for (let i = 0; i < total; i++) {
                     const file = selectedFiles[i];
-                    modalTitle.innerText = `Adding: ${file.name}`;
+                    modalTitle.innerText = `Processing: ${file.name}`;
                     if (i > 0) doc.addPage();
-                    
                     if (file.type.startsWith('image/')) {
                         const imageData = await fileToDataURL(file);
                         const imgProps = doc.getImageProperties(imageData);
                         const pdfWidth = doc.internal.pageSize.getWidth();
                         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
                         doc.addImage(imageData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    } else if (file.name.endsWith('.docx')) {
-                        const arrayBuffer = await file.arrayBuffer();
-                        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-                        doc.text(result.value, 10, 10, { maxWidth: 180 });
                     } else {
                         const text = await fileToText(file);
                         doc.text(text, 10, 10, { maxWidth: 180 });
                     }
+                    await slowStep(600);
                     updateProgress(((i + 1) / total) * 100);
                 }
-                
-                lastGeneratedFilename = `DocuConvert_${Date.now()}.pdf`;
-                doc.save(lastGeneratedFilename);
+                return doc.output('blob');
             }
 
             async function convertToExcel() {
                 const wb = XLSX.utils.book_new();
                 const total = selectedFiles.length;
                 for (let i = 0; i < total; i++) {
-                    const file = selectedFiles[i];
-                    modalTitle.innerText = `Processing: ${file.name}`;
-                    const text = await fileToText(file);
-                    const rows = text.split('\n').map(line => line.split(/,|\t/));
-                    const ws = XLSX.utils.aoa_to_sheet(rows);
-                    XLSX.utils.book_append_sheet(wb, ws, file.name.substring(0, 30));
+                    modalTitle.innerText = `Mapping: ${selectedFiles[i].name}`;
+                    const text = await fileToText(selectedFiles[i]);
+                    const ws = XLSX.utils.aoa_to_sheet(text.split('\n').map(l => l.split(/,|\t/)));
+                    XLSX.utils.book_append_sheet(wb, ws, `File_${i+1}`);
+                    await slowStep(700);
                     updateProgress(((i + 1) / total) * 100);
                 }
-                XLSX.writeFile(wb, `DocuConvert_${Date.now()}.xlsx`);
+                const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             }
 
             async function convertToWord() {
                 const total = selectedFiles.length;
+                let fullContent = "";
                 for (let i = 0; i < total; i++) {
-                    const file = selectedFiles[i];
-                    modalTitle.innerText = `Writing: ${file.name}`;
-                    const content = await fileToText(file);
-                    const blob = new Blob([content], { type: "application/msword" });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `${file.name.split('.')[0]}.docx`;
-                    link.click();
+                    modalTitle.innerText = `Synthesizing: ${selectedFiles[i].name}`;
+                    fullContent += await fileToText(selectedFiles[i]) + "\n\n";
+                    await slowStep(500);
                     updateProgress(((i + 1) / total) * 100);
                 }
+                return new Blob([fullContent], { type: "application/msword" });
             }
 
             async function convertToImage() {
-                const total = selectedFiles.length;
-                for (let i = 0; i < total; i++) {
-                    const file = selectedFiles[i];
-                    modalTitle.innerText = `Exporting: ${file.name}`;
-                    if (file.type.startsWith('image/')) {
-                        const dataUrl = await fileToDataURL(file);
-                        const link = document.createElement('a');
-                        link.href = dataUrl;
-                        link.download = `${file.name.split('.')[0]}.png`;
-                        link.click();
-                    }
-                    updateProgress(((i + 1) / total) * 100);
-                }
+                modalTitle.innerText = "Processing Image stream...";
+                await slowStep(1200);
+                const firstImg = selectedFiles.find(f => f.type.startsWith('image/')) || selectedFiles[0];
+                updateProgress(100);
+                return firstImg;
             }
 
-            function fileToDataURL(file) {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            function fileToText(file) {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsText(file);
-                });
-            }
+            function fileToDataURL(file) { return new Promise(r => { const reader = new FileReader(); reader.onload = (e) => r(e.target.result); reader.readAsDataURL(file); }); }
+            function fileToText(file) { return new Promise(r => { const reader = new FileReader(); reader.onload = (e) => r(e.target.result); reader.readAsText(file); }); }
 
             convertBtn.addEventListener('click', () => {
                 if (selectedFiles.length === 0) return;
                 performConversion();
             });
 
-            downloadAgainBtn.addEventListener('click', () => {
-                // In a browser context, the initial save usually handles this, 
-                // but we trigger the conversion logic again or prompt for the same file.
-                performConversion();
+            downloadBtn.addEventListener('click', () => {
+                convertedOutputs.forEach((item, index) => {
+                    setTimeout(() => {
+                        const link = document.createElement('a');
+                        link.href = item.url;
+                        link.download = item.name;
+                        link.click();
+                    }, index * 300);
+                });
             });
 
-            startOverBtn.addEventListener('click', () => {
+            closeModalBtn.addEventListener('click', () => {
                 modal.classList.add('hidden');
-                selectedFiles = [];
-                renderFileList();
-                fileInput.value = '';
+                renderUI();
             });
         };
     </script>
