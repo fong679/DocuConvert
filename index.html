@@ -15,7 +15,7 @@
         
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .glass {
@@ -23,11 +23,12 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
         }
 
         .dark .glass {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .drop-zone--over {
@@ -42,7 +43,27 @@
         .rotate-icon {
             transform: rotate(360deg);
         }
+
+        .progress-ring {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
     </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            950: '#1e1b4b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
 
@@ -145,16 +166,38 @@
 
     <!-- Processing Modal -->
     <div id="processingModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md hidden p-6">
-        <div class="glass p-10 rounded-[2.5rem] max-w-sm w-full text-center shadow-2xl">
-            <div id="spinner" class="inline-block animate-spin mb-6 text-indigo-600">
-                <i data-lucide="loader-2" class="w-16 h-16"></i>
+        <div class="glass p-10 rounded-[2.5rem] max-w-md w-full text-center shadow-2xl border-indigo-500/20">
+            <!-- Progress Section -->
+            <div id="progressSection" class="relative flex flex-col items-center">
+                <div class="relative mb-6">
+                    <svg class="w-24 h-24">
+                        <circle class="text-slate-200 dark:text-slate-800" stroke-width="8" stroke="currentColor" fill="transparent" r="40" cx="48" cy="48" />
+                        <circle id="progressCircle" class="text-indigo-600 progress-ring" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" stroke="currentColor" fill="transparent" r="40" cx="48" cy="48" />
+                    </svg>
+                    <div id="progressPercent" class="absolute inset-0 flex items-center justify-center font-bold text-lg">0%</div>
+                </div>
+                <h3 id="modalTitle" class="text-2xl font-extrabold mb-3">Processing...</h3>
+                <p id="modalText" class="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">Preparing your files for secure local conversion.</p>
             </div>
-            <div id="successIcon" class="hidden inline-block mb-6 text-emerald-500 scale-0 transition-transform duration-500">
-                <i data-lucide="check-circle" class="w-16 h-16"></i>
+
+            <!-- Success Section -->
+            <div id="successSection" class="hidden flex flex-col items-center">
+                <div class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 p-4 rounded-full mb-6">
+                    <i data-lucide="check" class="w-12 h-12"></i>
+                </div>
+                <h3 class="text-2xl font-extrabold mb-3 text-emerald-600 dark:text-emerald-400">Conversion Ready!</h3>
+                <p class="text-slate-500 dark:text-slate-400 mb-8">Your local download is ready. No data was shared during this process.</p>
+                
+                <div class="grid grid-cols-2 gap-4 w-full">
+                    <button id="downloadAgainBtn" class="bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all hover:bg-indigo-700 active:scale-95 flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Download
+                    </button>
+                    <button id="startOverBtn" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95">
+                        Start Over
+                    </button>
+                </div>
             </div>
-            <h3 id="modalTitle" class="text-2xl font-extrabold mb-3">Processing...</h3>
-            <p id="modalText" class="text-slate-500 dark:text-slate-400 leading-relaxed">DocuConvert is restructuring your file data locally.</p>
-            <button id="closeModal" class="hidden mt-8 w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all">Done</button>
         </div>
     </div>
 
@@ -197,6 +240,8 @@
             const fileCountBadge = document.getElementById('fileCount');
             const formatSelect = document.getElementById('formatSelect');
             let selectedFiles = [];
+            let lastGeneratedBlob = null;
+            let lastGeneratedFilename = "";
 
             dropZone.addEventListener('click', () => fileInput.click());
 
@@ -256,21 +301,31 @@
             // --- Conversion Logic ---
             const convertBtn = document.getElementById('convertBtn');
             const modal = document.getElementById('processingModal');
-            const spinner = document.getElementById('spinner');
-            const successIcon = document.getElementById('successIcon');
+            const progressSection = document.getElementById('progressSection');
+            const successSection = document.getElementById('successSection');
+            const progressCircle = document.getElementById('progressCircle');
+            const progressPercent = document.getElementById('progressPercent');
             const modalTitle = document.getElementById('modalTitle');
-            const modalText = document.getElementById('modalText');
-            const closeModal = document.getElementById('closeModal');
+            const downloadAgainBtn = document.getElementById('downloadAgainBtn');
+            const startOverBtn = document.getElementById('startOverBtn');
+
+            function updateProgress(percent) {
+                const offset = 251.2 - (percent / 100 * 251.2);
+                progressCircle.style.strokeDashoffset = offset;
+                progressPercent.innerText = `${Math.round(percent)}%`;
+            }
 
             async function performConversion() {
                 const targetFormat = formatSelect.value;
                 modal.classList.remove('hidden');
-                spinner.classList.remove('hidden');
-                successIcon.classList.add('hidden');
-                closeModal.classList.add('hidden');
-                modalTitle.innerText = "Processing Files...";
+                progressSection.classList.remove('hidden');
+                successSection.classList.add('hidden');
+                updateProgress(0);
+                modalTitle.innerText = "Analyzing Files...";
 
                 try {
+                    await new Promise(r => setTimeout(r, 500)); // UI buffer
+                    
                     if (targetFormat === 'pdf') {
                         await convertToPDF();
                     } else if (targetFormat === 'xlsx') {
@@ -281,28 +336,27 @@
                         await convertToImage();
                     }
 
-                    spinner.classList.add('hidden');
-                    successIcon.classList.remove('hidden');
-                    setTimeout(() => successIcon.classList.add('scale-100'), 50);
-                    modalTitle.innerText = "Download Ready!";
-                    modalText.innerText = `Successfully converted ${selectedFiles.length} file(s) to ${targetFormat.toUpperCase()}.`;
-                    closeModal.classList.remove('hidden');
+                    progressSection.classList.add('hidden');
+                    successSection.classList.remove('hidden');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 } catch (error) {
                     console.error(error);
                     modalTitle.innerText = "Error";
-                    modalText.innerText = "An error occurred during local conversion. Ensure the file types are compatible.";
-                    spinner.classList.add('hidden');
-                    closeModal.classList.remove('hidden');
+                    modalText.innerText = "An error occurred during local conversion.";
+                    setTimeout(() => modal.classList.add('hidden'), 3000);
                 }
             }
 
-            // Target: PDF
             async function convertToPDF() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                for (let i = 0; i < selectedFiles.length; i++) {
+                const total = selectedFiles.length;
+                
+                for (let i = 0; i < total; i++) {
                     const file = selectedFiles[i];
+                    modalTitle.innerText = `Adding: ${file.name}`;
                     if (i > 0) doc.addPage();
+                    
                     if (file.type.startsWith('image/')) {
                         const imageData = await fileToDataURL(file);
                         const imgProps = doc.getImageProperties(imageData);
@@ -317,39 +371,48 @@
                         const text = await fileToText(file);
                         doc.text(text, 10, 10, { maxWidth: 180 });
                     }
+                    updateProgress(((i + 1) / total) * 100);
                 }
-                doc.save(`DocuConvert_${Date.now()}.pdf`);
+                
+                lastGeneratedFilename = `DocuConvert_${Date.now()}.pdf`;
+                doc.save(lastGeneratedFilename);
             }
 
-            // Target: Excel (XLSX)
             async function convertToExcel() {
                 const wb = XLSX.utils.book_new();
-                for (const file of selectedFiles) {
+                const total = selectedFiles.length;
+                for (let i = 0; i < total; i++) {
+                    const file = selectedFiles[i];
+                    modalTitle.innerText = `Processing: ${file.name}`;
                     const text = await fileToText(file);
-                    // Simple logic: split lines by newline and cells by comma/tab
                     const rows = text.split('\n').map(line => line.split(/,|\t/));
                     const ws = XLSX.utils.aoa_to_sheet(rows);
                     XLSX.utils.book_append_sheet(wb, ws, file.name.substring(0, 30));
+                    updateProgress(((i + 1) / total) * 100);
                 }
                 XLSX.writeFile(wb, `DocuConvert_${Date.now()}.xlsx`);
             }
 
-            // Target: Word (DOCX)
             async function convertToWord() {
-                // Mammoth is for reading, for writing we use a Blob hack for simple text-to-docx
-                for (const file of selectedFiles) {
+                const total = selectedFiles.length;
+                for (let i = 0; i < total; i++) {
+                    const file = selectedFiles[i];
+                    modalTitle.innerText = `Writing: ${file.name}`;
                     const content = await fileToText(file);
-                    const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+                    const blob = new Blob([content], { type: "application/msword" });
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(blob);
                     link.download = `${file.name.split('.')[0]}.docx`;
                     link.click();
+                    updateProgress(((i + 1) / total) * 100);
                 }
             }
 
-            // Target: Image (PNG) - Simple placeholder for canvas export
             async function convertToImage() {
-                for (const file of selectedFiles) {
+                const total = selectedFiles.length;
+                for (let i = 0; i < total; i++) {
+                    const file = selectedFiles[i];
+                    modalTitle.innerText = `Exporting: ${file.name}`;
                     if (file.type.startsWith('image/')) {
                         const dataUrl = await fileToDataURL(file);
                         const link = document.createElement('a');
@@ -357,6 +420,7 @@
                         link.download = `${file.name.split('.')[0]}.png`;
                         link.click();
                     }
+                    updateProgress(((i + 1) / total) * 100);
                 }
             }
 
@@ -381,10 +445,17 @@
                 performConversion();
             });
 
-            closeModal.addEventListener('click', () => {
+            downloadAgainBtn.addEventListener('click', () => {
+                // In a browser context, the initial save usually handles this, 
+                // but we trigger the conversion logic again or prompt for the same file.
+                performConversion();
+            });
+
+            startOverBtn.addEventListener('click', () => {
                 modal.classList.add('hidden');
                 selectedFiles = [];
                 renderFileList();
+                fileInput.value = '';
             });
         };
     </script>
