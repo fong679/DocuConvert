@@ -6,6 +6,8 @@
     <title>DocuConvert - Private & Fast File Conversion</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide:0.263.0/lucide.min.js"></script>
+    <!-- Adding jspdf for actual client-side PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
         
@@ -32,7 +34,6 @@
             transform: scale(1.01);
         }
 
-        /* Smooth custom transition for theme toggle */
         #themeIcon {
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -101,13 +102,10 @@
                         <span class="text-sm font-bold text-slate-500">Output:</span>
                         <select id="formatSelect" class="flex-1 md:flex-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
                             <option value="pdf">Portable Document (.pdf)</option>
-                            <option value="docx">Word Document (.docx)</option>
-                            <option value="xlsx">Excel Sheet (.xlsx)</option>
-                            <option value="png">Image (.png)</option>
                         </select>
                     </div>
                     <button id="convertBtn" class="w-full md:w-auto bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-12 py-4 rounded-2xl font-bold shadow-xl transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-3">
-                        <span>Convert Now</span>
+                        <span>Convert & Download</span>
                         <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
                     </button>
                 </div>
@@ -156,7 +154,6 @@
     </div>
 
     <script>
-        // Use window.onload to ensure all libraries are available
         window.onload = function() {
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
@@ -166,7 +163,6 @@
             const themeToggle = document.getElementById('themeToggle');
             const themeIcon = document.getElementById('themeIcon');
 
-            // --- Theme Logic ---
             function applyTheme(theme) {
                 if (theme === 'dark') {
                     html.classList.add('dark');
@@ -180,7 +176,6 @@
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
-            // Init theme
             const savedTheme = localStorage.getItem('docu-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             applyTheme(savedTheme);
 
@@ -190,7 +185,6 @@
                 applyTheme(current);
             });
 
-            // --- File Management ---
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileInput');
             const fileListContainer = document.getElementById('fileListContainer');
@@ -253,7 +247,7 @@
                 }
             }
 
-            // --- Conversion Simulation ---
+            // --- Functional Conversion Logic ---
             const convertBtn = document.getElementById('convertBtn');
             const modal = document.getElementById('processingModal');
             const spinner = document.getElementById('spinner');
@@ -262,26 +256,72 @@
             const modalText = document.getElementById('modalText');
             const closeModal = document.getElementById('closeModal');
 
-            convertBtn.addEventListener('click', () => {
-                if (selectedFiles.length === 0) return;
-
+            async function performActualConversion() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
                 modal.classList.remove('hidden');
                 spinner.classList.remove('hidden');
                 successIcon.classList.add('hidden');
-                successIcon.classList.remove('scale-100');
-                modalTitle.innerText = "Converting...";
-                modalText.innerText = "Applying privacy-safe local transformations.";
                 closeModal.classList.add('hidden');
+                modalTitle.innerText = "Processing Files...";
 
-                setTimeout(() => {
+                try {
+                    for (let i = 0; i < selectedFiles.length; i++) {
+                        const file = selectedFiles[i];
+                        
+                        // If it's an image, embed it. If text, write it.
+                        if (file.type.startsWith('image/')) {
+                            const imageData = await fileToDataURL(file);
+                            if (i > 0) doc.addPage();
+                            const imgProps = doc.getImageProperties(imageData);
+                            const pdfWidth = doc.internal.pageSize.getWidth();
+                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                            doc.addImage(imageData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                        } else {
+                            const text = await fileToText(file);
+                            if (i > 0) doc.addPage();
+                            doc.text(text, 10, 10, { maxWidth: 180 });
+                        }
+                    }
+
+                    // Download the result
+                    doc.save(`DocuConvert_${Date.now()}.pdf`);
+
                     spinner.classList.add('hidden');
                     successIcon.classList.remove('hidden');
                     setTimeout(() => successIcon.classList.add('scale-100'), 50);
-                    
-                    modalTitle.innerText = "All Set!";
-                    modalText.innerText = `Processed ${selectedFiles.length} file(s) inside your browser. Ready for deployment to GitHub!`;
+                    modalTitle.innerText = "Download Ready!";
+                    modalText.innerText = "Your conversion is complete and saved to your downloads folder.";
                     closeModal.classList.remove('hidden');
-                }, 2500);
+                } catch (error) {
+                    console.error(error);
+                    modalTitle.innerText = "Error";
+                    modalText.innerText = "Something went wrong during local processing.";
+                    spinner.classList.add('hidden');
+                    closeModal.classList.remove('hidden');
+                }
+            }
+
+            function fileToDataURL(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            function fileToText(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsText(file);
+                });
+            }
+
+            convertBtn.addEventListener('click', () => {
+                if (selectedFiles.length === 0) return;
+                performActualConversion();
             });
 
             closeModal.addEventListener('click', () => {
